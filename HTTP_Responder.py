@@ -34,6 +34,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(response.encode())
 
 if __name__ == '__main__':
-    server_address = ('', 8000)
-    httpd = HTTPServer(server_address, RequestHandler)
-    httpd.serve_forever()
+    try:
+        server_address = ('', 8000)
+        httpd = HTTPServer(server_address, RequestHandler)
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print('Interrupted', flush=True)
+        httpd.server_close()
+        exit()
+    except:
+        print("ERROR", flush=True)
