@@ -7,6 +7,7 @@
 #   curl -d "param1=value1&param2=value2" -X POST 127.0.0.1:8000
 # Free online equivalente service.
 #   https://webhook.site/
+#   http://dnslog.cn/
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
