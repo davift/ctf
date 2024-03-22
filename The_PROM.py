@@ -16,7 +16,7 @@ io.sendlineafter(b"> ", ("set_oe_pin("+LOW+")").encode('ascii')) # Output Enable
 io.sendlineafter(b"> ", ("set_we_pin("+HIGH+")").encode('ascii')) # Write Enable (Write Mode) - Disabled at 5V (active LOW)
 #io.sendlineafter(b"> ", "set_io_pins([0, 0, 0, 0, 0, 0, 0, 0])".encode('ascii')) - For writing only
 
-for i in range(int("7E0", 16), int("7FF", 16)):
+for i in range(int("7E0", 16), int("7FF", 16)+1):
     binary = str(bin(i)[2:]).rjust(11,"0")
     binary = binary.replace("1", HIGH)
     bits = list(binary)
