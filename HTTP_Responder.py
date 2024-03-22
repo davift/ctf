@@ -5,6 +5,8 @@
 #   curl 127.0.0.1:8000/?param1=value1&param2=value2
 # POST
 #   curl -d "param1=value1&param2=value2" -X POST 127.0.0.1:8000
+# Free online equivalente service.
+#   https://webhook.site/
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
