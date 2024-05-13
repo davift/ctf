@@ -1,0 +1,84 @@
+#!/usr/bin/python3
+
+from pwn import *
+from tabulate import tabulate
+import sys
+import platform
+
+happy = '\U0001f60E '
+unhappy = '\U0001f92c '
+
+executable = sys.argv[1]
+elf = ELF(executable, checksec= False)
+
+print('')
+
+parameters = [
+    [executable, elf.os, elf.elftype],
+]
+print(tabulate(parameters, headers=['File', 'O.S.', 'Type'], tablefmt="fancy_grid"))
+
+print('')
+
+if platform.machine() == 'x86_64':
+    processor = 'amd64'
+elif platform.machine() == 'i386' or platform.machine() == 'i686':
+    processor = 'i386'
+elif platform.machine() == 'arm':
+    processor = 'arm'
+elif 'aarch' in platform.machine() or 'aarch' in platform.machine():
+    processor = 'arm64'
+else:
+    processor = 'other'
+
+parameters = [
+    ['Native', elf.native, unhappy + "Might NOT run on this system" if not elf.native else happy + "Ready to run!"],
+    ['Architecture', elf.arch.upper() + ' (' + str(elf.bits) + ' bits)', unhappy + "Different architectures: " + processor if elf.arch != processor else happy + "Perfect match!"],    ['Endianness', elf.endian.upper(), unhappy + "Use pack/unpack order the bytes" if elf.endian == 'little' else happy + "Bytes are ordered straightforward"],
+    ['Dynamic Linked', elf.statically_linked, unhappy + "Addresses are randomized" if elf.statically_linked else happy + "Known addresses"],
+    ['Stripped', elf.get_section_by_name('.symtab') is None, unhappy + "Debugging will be challenging" if elf.get_section_by_name('.symtab') is None else happy + "Easy peasy to debug"],
+    ['UPX Packed', elf.packed, unhappy + "Hard to revser engineer" if elf.packed else happy + "No problem at all"],
+]
+print(tabulate(parameters, headers=['Parameters', 'Value', 'Comments'], tablefmt="fancy_grid"))
+
+print('')
+
+protections = [
+    ['PIE Enabled', elf.pie, unhappy + "Randomized addresses in memory" if elf.pie else happy + "Static addresses in memory"],
+    ['ASLR Enabled', elf.aslr, unhappy + "Randomized base addresses" if elf.aslr else happy + "Static base addresses"],
+    ['NX Enabled', elf.nx, unhappy + "Shell-code is NOT allowed" if elf.nx else happy + "Let's execute shell-code"],
+    ['Canary Enabled', elf.canary, unhappy + "Buffer overflow protection enabled" if elf.canary else happy + "Let's overflow"],
+    ['RELRO Level', elf.relro, unhappy + "Shell-code is NOT allowed" if elf.execstack == 'Full' else happy + "Let's overwrite arbitrarily"],
+    ['Fortify Enabled', elf.fortify, unhappy + "Additional checks and protections enabled" if elf.fortify else happy + "All good!"],
+]
+print(tabulate(protections, headers=['Protections', 'Value', 'Comments'], tablefmt="fancy_grid"))
+
+print('')
+
+libs = []
+for key, value in elf.libs.items():
+    libs.append({'Files': key, 'Base': hex(value)})
+
+print(tabulate(libs, headers='keys', tablefmt="fancy_grid"))
+
+if len(elf.functions.items()) >= 20 or len(elf.got.items()) >= 20 or len(elf.plt.items()) >= 20:
+    print('')
+    print(tabulate([{'Items': 'Functions', 'Qty': len(elf.functions.items())}, {'Items': 'GOT / PLT', 'Qty': len(elf.got.items())}], headers='keys', tablefmt="fancy_grid"))
+    exit()
+
+print('')
+
+funcs = []
+for key, value in elf.functions.items():
+    funcs.append({'Functions': key, 'Address': hex(value.address)})
+
+print(tabulate(funcs, headers='keys', tablefmt="fancy_grid"))
+
+print('')
+
+got = []
+for key, value in elf.got.items():
+    got.append({'GOT / PLT': key, 'Value': hex(value)})
+
+print(tabulate(got, headers='keys', tablefmt="fancy_grid"))
+
+exit()
