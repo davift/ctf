@@ -10,6 +10,12 @@ The scripts were hand-crafted while solving challenges from HTB, THM, ROG Empori
 
 The script `checks` is my shortcut (utilizing `pwntools`) for visualizing information from the `checksec` and `file` commands in a different layout, including comments and tips.
 
+For ease of use, I created a symbolic link that is reachable from any directory with:
+
+```
+sudo ln -s /home/kali/Downloads/ctf/checks /usr/local/sbin/checks
+```
+
 ## Finally
 
 Feel free to use and propose modifications or improvements.

