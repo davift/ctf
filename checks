@@ -6,12 +6,16 @@ import platform
 import os
 import stat
 import argparse
+import subprocess
 
 # Parsing arguments
 parser = argparse.ArgumentParser(description="Quick ELF proprieties and protection checker for Reverse Engineering and Binary Exploitation (https://github.com/davift/ctf)")
 parser.add_argument('file', type=str, help="binary file")
-parser.add_argument('-fu', action='store_true', help="list functions")
+parser.add_argument('-all', action='store_true', help="combine all outputs")
+parser.add_argument('-fun', action='store_true', help="list functions")
 parser.add_argument('-rw', action='store_true', help="list readeable + writeables")
+parser.add_argument('-str', action='store_true', help="list strings")
+parser.add_argument('-gad', action='store_true', help="list gadgets")
 args = parser.parse_args()
 
 # System attributes
@@ -95,29 +99,53 @@ for segment in elf.segments:
     if segment.header.p_flags & 0x4 and segment.header.p_flags & 0x2:
         segments.append({'Segment': hex(segment.header.p_vaddr), 'Size': hex(segment.header.p_memsz)})
 
+strings = []
+# Listing strings
+strings_output = subprocess.run(['strings', '-tx', args.file], capture_output=True, text=True).stdout.split("\n")[:-1]
+for string in strings_output:
+    strings.append({'String': string.split()[1], 'Address': '0x' + string.split()[0]})
+
+gadgets = []
+# Listing gadgets
+gadgets_output = subprocess.run(['ROPgadget', '--binary', 'badchars'], capture_output=True, text=True).stdout.split("\n")[2:-3]
+for gadget in gadgets_output:
+    gadgets.append({'Gadget': gadget.split(' : ')[1], 'Address': gadget.split(' : ')[0]})
+
 
 
 # Printing header
-print("\n" + tabulate(attibutes, headers=['File', 'O.S.', 'Type'], tablefmt="fancy_grid"))
+print(tabulate(attibutes, headers=['File', 'O.S.', 'Type'], tablefmt="fancy_grid"))
 
 # Printing option
-if not args.fu and not args.rw:
+if (not args.fun and not args.rw and not args.str and not args.gad) or (args.all):
     # No option
-    print("\n" + tabulate(parameters, headers=['Parameters', 'Value', 'Comments'], tablefmt="fancy_grid"))
-    print("\n" + tabulate(protections, headers=['Protections', 'Value', 'Comments'], tablefmt="fancy_grid"))
-    print("\n" + tabulate([{'Items': 'Functions', 'Qty': len(elf.functions.items())}, {'Items': 'GOT', 'Qty': len(elf.got.items())}], headers='keys', tablefmt="fancy_grid"))
-    exit()
-elif args.fu and not args.rw:
+    print(tabulate(parameters, headers=['Parameters', 'Value', 'Comments'], tablefmt="fancy_grid"))
+    print(tabulate(protections, headers=['Protections', 'Value', 'Comments'], tablefmt="fancy_grid"))
+    print(tabulate([{'Items': 'Functions', 'Qty': len(elf.functions.items())}, {'Items': 'GOT', 'Qty': len(elf.got.items())}, {'Items': 'PLT', 'Qty': len(elf.plt.items())}, {'Items': 'RW Sections', 'Qty': len(sections)}, {'Items': 'RW Segments', 'Qty': len(segments)}], headers='keys', tablefmt="fancy_grid"))
+    # Combining all outputs
+    if args.all:
+        args.fun = True
+        args.rw = True
+        args.str = True
+        args.gad = True
+if args.fun:
     # Option function
-    print("\n" + tabulate(libs, headers='keys', tablefmt="fancy_grid"))
+    print(tabulate(libs, headers='keys', tablefmt="fancy_grid"))
     if funcs:
-        print("\n" + tabulate(funcs, headers='keys', tablefmt="fancy_grid"))
+        print(tabulate(funcs, headers='keys', tablefmt="fancy_grid"))
     else:
-        print("\nNo DWARF symbols to determine function names.")
-    print("\n" + tabulate(got, headers='keys', tablefmt="fancy_grid"))
-    print("\n" + tabulate(plt, headers='keys', tablefmt="fancy_grid"))
-    exit()
-elif not args.fu and args.rw:
+        print("No DWARF symbols to determine function names.")
+    print(tabulate(got, headers='keys', tablefmt="fancy_grid"))
+    print(tabulate(plt, headers='keys', tablefmt="fancy_grid"))
+if args.rw:
     # Option writeables
-    print("\n" + tabulate(sections, headers='keys', tablefmt="fancy_grid"))
-    print("\n" + tabulate(segments, headers='keys', tablefmt="fancy_grid"))
+    print(tabulate(sections, headers='keys', tablefmt="fancy_grid"))
+    print(tabulate(segments, headers='keys', tablefmt="fancy_grid"))
+if args.str:
+    # Option strings
+    print(tabulate(strings, headers='keys', tablefmt="fancy_grid"))
+if args.gad:
+    # Option gadgets
+    print(tabulate(gadgets, headers='keys', tablefmt="fancy_grid"))
+
+exit()
