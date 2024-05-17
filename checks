@@ -111,6 +111,16 @@ gadgets_output = subprocess.run(['ROPgadget', '--binary', 'badchars'], capture_o
 for gadget in gadgets_output:
     gadgets.append({'Gadget': gadget.split(' : ')[1], 'Address': gadget.split(' : ')[0]})
 
+# Building summary
+summary = [
+    {'Items': 'Functions', 'Qty': len(elf.functions.items())}, 
+    {'Items': 'GOT', 'Qty': len(elf.got.items())}, 
+    {'Items': 'PLT', 'Qty': len(elf.plt.items())}, 
+    {'Items': 'RW Sections', 'Qty': len(sections)}, 
+    {'Items': 'RW Segments', 'Qty': len(segments)},
+    {'Items': 'Strings', 'Qty': len(strings)}, 
+    {'Items': 'Gadgets', 'Qty': len(gadgets)},
+]
 
 
 # Printing header
@@ -121,7 +131,7 @@ if (not args.fun and not args.rw and not args.str and not args.gad) or (args.all
     # No option
     print(tabulate(parameters, headers=['Parameters', 'Value', 'Comments'], tablefmt="fancy_grid"))
     print(tabulate(protections, headers=['Protections', 'Value', 'Comments'], tablefmt="fancy_grid"))
-    print(tabulate([{'Items': 'Functions', 'Qty': len(elf.functions.items())}, {'Items': 'GOT', 'Qty': len(elf.got.items())}, {'Items': 'PLT', 'Qty': len(elf.plt.items())}, {'Items': 'RW Sections', 'Qty': len(sections)}, {'Items': 'RW Segments', 'Qty': len(segments)}], headers='keys', tablefmt="fancy_grid"))
+    print(tabulate(summary, headers='keys', tablefmt="fancy_grid"))
     # Combining all outputs
     if args.all:
         args.fun = True
