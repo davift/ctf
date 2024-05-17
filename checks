@@ -2,30 +2,19 @@
 
 from pwn import *
 from tabulate import tabulate
-import sys
 import platform
 import os
 import stat
+import argparse
 
-happy = '\U0001f60E '
-unhappy = '\U0001f92c '
+# Parsing arguments
+parser = argparse.ArgumentParser(description="Quick ELF proprieties and protection checker for Reverse Engineering and Binary Exploitation (https://github.com/davift/ctf)")
+parser.add_argument('file', type=str, help="binary file")
+parser.add_argument('-fu', action='store_true', help="list functions")
+parser.add_argument('-rw', action='store_true', help="list readeable + writeables")
+args = parser.parse_args()
 
-executable = sys.argv[1]
-elf = ELF(executable, checksec= False)
-
-print('')
-
-parameters = [
-    [executable, elf.os, elf.elftype],
-]
-print(tabulate(parameters, headers=['File', 'O.S.', 'Type'], tablefmt="fancy_grid"))
-
-if elf.elftype == 'EXEC' or elf.elftype == 'DYN':
-    st = os.stat(executable)
-    os.chmod(executable, st.st_mode | stat.S_IEXEC)
-
-print('')
-
+# System attributes
 if platform.machine() == 'x86_64':
     processor = 'amd64'
 elif platform.machine() == 'i386' or platform.machine() == 'i686':
@@ -37,6 +26,25 @@ elif 'aarch' in platform.machine() or 'aarch' in platform.machine():
 else:
     processor = 'other'
 
+# Emojis
+happy = '\U0001f60E '
+unhappy = '\U0001f92c '
+
+# Binary
+executable = args.file
+elf = ELF(executable, checksec= False)
+
+# Binary attributes
+attibutes = [
+    [executable, elf.os, elf.elftype],
+]
+
+# Marking binary as executable
+if elf.elftype == 'EXEC' or elf.elftype == 'DYN':
+    st = os.stat(executable)
+    os.chmod(executable, st.st_mode | stat.S_IEXEC)
+
+# Binary parameters
 parameters = [
     ['Native', elf.native, unhappy + "Might NOT run on this system" if not elf.native else happy + "Ready to run!"],
     ['Architecture', elf.arch.upper() + ' (' + str(elf.bits) + ' bits)', unhappy + "Different architectures: " + processor if elf.arch != processor else happy + "Perfect match!"],    ['Endianness', elf.endian.upper(), unhappy + "Use pack/unpack order the bytes" if elf.endian == 'little' else happy + "Bytes are ordered straightforward"],
@@ -44,47 +52,72 @@ parameters = [
     ['Stripped', elf.get_section_by_name('.symtab') is None, unhappy + "Debugging will be challenging" if elf.get_section_by_name('.symtab') is None else happy + "Easy peasy to debug"],
     ['UPX Packed', elf.packed, unhappy + "Hard to revser engineer" if elf.packed else happy + "No problem at all"],
 ]
-print(tabulate(parameters, headers=['Parameters', 'Value', 'Comments'], tablefmt="fancy_grid"))
 
-print('')
-
+# Binary protections
 protections = [
     ['PIE Enabled', elf.pie, unhappy + "Randomized addresses in memory" if elf.pie else happy + "Static addresses in memory"],
     ['ASLR Enabled', elf.aslr, unhappy + "Randomized base addresses" if elf.aslr else happy + "Static base addresses"],
     ['NX Enabled', elf.nx, unhappy + "Shell-code is NOT allowed" if elf.nx else happy + "Let's execute shell-code"],
     ['Canary Enabled', elf.canary, unhappy + "Buffer overflow protection enabled" if elf.canary else happy + "Let's overflow"],
-    ['RELRO Level', elf.relro, unhappy + "Shell-code is NOT allowed" if elf.execstack == 'Full' else happy + "Let's overwrite arbitrarily"],
+    ['RELRO Level', elf.relro, unhappy + "NO arbitrary overwrite allowed" if elf.relro == 'Full' else happy + "Let's overwrite arbitrarily"],
     ['Fortify Enabled', elf.fortify, unhappy + "Additional checks and protections enabled" if elf.fortify else happy + "All good!"],
 ]
-print(tabulate(protections, headers=['Protections', 'Value', 'Comments'], tablefmt="fancy_grid"))
 
-print('')
-
+# Linked libraries
 libs = []
 for key, value in elf.libs.items():
     libs.append({'Files': key, 'Base': hex(value)})
 
-print(tabulate(libs, headers='keys', tablefmt="fancy_grid"))
-
-if len(elf.functions.items()) >= 20 or len(elf.got.items()) >= 20 or len(elf.plt.items()) >= 20:
-    print('')
-    print(tabulate([{'Items': 'Functions', 'Qty': len(elf.functions.items())}, {'Items': 'GOT / PLT', 'Qty': len(elf.got.items())}], headers='keys', tablefmt="fancy_grid"))
-    exit()
-
-print('')
-
+# Listing functions
 funcs = []
 for key, value in elf.functions.items():
     funcs.append({'Functions': key, 'Address': hex(value.address)})
 
-print(tabulate(funcs, headers='keys', tablefmt="fancy_grid"))
-
-print('')
-
+# Listing GOT
 got = []
 for key, value in elf.got.items():
-    got.append({'GOT / PLT': key, 'Value': hex(value)})
+    got.append({'GOT': key, 'Value': hex(value)})
 
-print(tabulate(got, headers='keys', tablefmt="fancy_grid"))
+# Listing GOT
+plt = []
+for key, value in elf.plt.items():
+    plt.append({'PLT': key, 'Value': hex(value)})
 
-exit()
+sections = []
+# Listing writeable sections
+for section in elf.sections:
+    if section.header.sh_flags & 0x4 and section.header.sh_flags & 0x2:
+        sections.append({'Section': section.name, 'Address': hex(section.header.sh_addr), 'Size': hex(section.header.sh_size)})
+
+segments = []
+# Listing writeable segments
+for segment in elf.segments:
+    if segment.header.p_flags & 0x4 and segment.header.p_flags & 0x2:
+        segments.append({'Segment': hex(segment.header.p_vaddr), 'Size': hex(segment.header.p_memsz)})
+
+
+
+# Printing header
+print("\n" + tabulate(attibutes, headers=['File', 'O.S.', 'Type'], tablefmt="fancy_grid"))
+
+# Printing option
+if not args.fu and not args.rw:
+    # No option
+    print("\n" + tabulate(parameters, headers=['Parameters', 'Value', 'Comments'], tablefmt="fancy_grid"))
+    print("\n" + tabulate(protections, headers=['Protections', 'Value', 'Comments'], tablefmt="fancy_grid"))
+    print("\n" + tabulate([{'Items': 'Functions', 'Qty': len(elf.functions.items())}, {'Items': 'GOT', 'Qty': len(elf.got.items())}], headers='keys', tablefmt="fancy_grid"))
+    exit()
+elif args.fu and not args.rw:
+    # Option function
+    print("\n" + tabulate(libs, headers='keys', tablefmt="fancy_grid"))
+    if funcs:
+        print("\n" + tabulate(funcs, headers='keys', tablefmt="fancy_grid"))
+    else:
+        print("\nNo DWARF symbols to determine function names.")
+    print("\n" + tabulate(got, headers='keys', tablefmt="fancy_grid"))
+    print("\n" + tabulate(plt, headers='keys', tablefmt="fancy_grid"))
+    exit()
+elif not args.fu and args.rw:
+    # Option writeables
+    print("\n" + tabulate(sections, headers='keys', tablefmt="fancy_grid"))
+    print("\n" + tabulate(segments, headers='keys', tablefmt="fancy_grid"))
